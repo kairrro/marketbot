@@ -1,0 +1,419 @@
+/*
+ * Backtester design tokens and base controls. Plain CSS, no framework.
+ *
+ * Everything is scoped to `.bt` so it cannot leak into the rest of the app,
+ * and every base rule uses :where() so component styles always win without
+ * specificity fights. The rest of the app loads Tailwind in cascade layers;
+ * these rules are unlayered, so they take precedence on any property set here.
+ */
+
+.bt {
+  /* Surfaces: true neutral greys, near-black (never pure black, never tinted blue). */
+  --bg: #0d0d0d;
+  --surface: #131313;
+  --surface-2: #1a1a1a;
+  --surface-3: #222222;
+  --grid: #181818;
+  --border: #272727;
+  --border-strong: #383838;
+
+  --text: #e6e6e6;
+  --text-2: #8e8e8e;
+  --text-3: #606060;
+
+  /* One accent. */
+  --accent: #4c8dff;
+  --accent-hover: #6aa0ff;
+  --accent-soft: rgba(76, 141, 255, 0.14);
+
+  /* Green and red are for P&L and trade direction only. */
+  --green: #35b389;
+  --green-soft: rgba(53, 179, 137, 0.13);
+  --red: #e5565b;
+  --red-soft: rgba(229, 86, 91, 0.13);
+
+  /* Amber is for warnings only. */
+  --amber: #d9a441;
+  --amber-soft: rgba(217, 164, 65, 0.11);
+
+  --level: #9a9a9a;
+
+  /* Market-session highlights. Kept clear of green, red and amber. */
+  --session-asia: #a27ff0;
+  --session-london: #45b6cc;
+  --session-ny: #e0779f;
+
+  --radius: 8px;
+  --radius-sm: 6px;
+  --ctl: 30px;
+  --gap: 8px;
+
+  --font-ui: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', 'Cascadia Mono', Consolas, monospace;
+
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+  color: var(--text);
+  font: 400 13px/1.45 var(--font-ui);
+  font-feature-settings: 'cv11', 'ss01';
+  -webkit-font-smoothing: antialiased;
+  color-scheme: dark;
+  overflow: hidden;
+}
+
+:where(.bt),
+:where(.bt) *,
+:where(.bt) *::before,
+:where(.bt) *::after {
+  box-sizing: border-box;
+}
+
+:where(.bt) :is(h1, h2, h3, h4, p, ul, ol, dl, dd, figure) {
+  margin: 0;
+  padding: 0;
+}
+
+:where(.bt) :is(h1, h2, h3, h4) {
+  font-size: inherit;
+  font-weight: inherit;
+}
+
+:where(.bt) :is(ul, ol) {
+  list-style: none;
+}
+
+:where(.bt) table {
+  border-collapse: collapse;
+  border-spacing: 0;
+}
+
+:where(.bt) svg {
+  display: block;
+  flex: none;
+}
+
+:where(.bt) a {
+  color: inherit;
+  text-decoration: none;
+}
+
+:where(.bt) :is(button, input, select, textarea) {
+  margin: 0;
+  font: inherit;
+  color: inherit;
+  letter-spacing: inherit;
+}
+
+:where(.bt) button {
+  appearance: none;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  cursor: pointer;
+  text-align: inherit;
+}
+
+:where(.bt) button:disabled {
+  cursor: default;
+}
+
+:where(.bt) :focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+:where(.bt) ::selection {
+  background: var(--accent-soft);
+}
+
+:where(.bt) * {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-strong) transparent;
+}
+
+/* ---- text helpers ---- */
+
+/* Prices and numbers: monospace with tabular figures so columns line up. */
+:where(.bt) .num {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: normal;
+  letter-spacing: -0.01em;
+}
+
+:where(.bt) .pos {
+  color: var(--green);
+}
+
+:where(.bt) .neg {
+  color: var(--red);
+}
+
+:where(.bt) .amber {
+  color: var(--amber);
+}
+
+:where(.bt) .dim {
+  color: var(--text-2);
+}
+
+:where(.bt) .faint {
+  color: var(--text-3);
+}
+
+/* Small section heading. */
+:where(.bt) .cap {
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-3);
+}
+
+:where(.bt) kbd {
+  display: inline-block;
+  min-width: 18px;
+  padding: 0 5px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--surface-2);
+  font: 500 10.5px/16px var(--font-mono);
+  color: var(--text-2);
+  text-align: center;
+}
+
+/* ---- buttons ---- */
+
+:where(.bt) .btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: var(--ctl);
+  padding: 0 11px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  color: var(--text);
+  font-weight: 500;
+  white-space: nowrap;
+  transition:
+    background-color 0.12s,
+    border-color 0.12s,
+    color 0.12s;
+}
+
+:where(.bt) .btn:hover:not(:disabled) {
+  border-color: var(--border-strong);
+  background: var(--surface-3);
+}
+
+:where(.bt) .btn:disabled {
+  opacity: 0.45;
+}
+
+:where(.bt) .btn.primary {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: #fff;
+}
+
+:where(.bt) .btn.primary:hover:not(:disabled) {
+  border-color: var(--accent-hover);
+  background: var(--accent-hover);
+}
+
+/* No chrome until hovered. */
+:where(.bt) .btn.quiet {
+  border-color: transparent;
+  background: transparent;
+  color: var(--text-2);
+}
+
+:where(.bt) .btn.quiet:hover:not(:disabled) {
+  border-color: transparent;
+  background: var(--surface-3);
+  color: var(--text);
+}
+
+/* A tool that is armed. */
+:where(.bt) .btn.on {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent-hover);
+}
+
+:where(.bt) .btn.buy {
+  border-color: transparent;
+  background: var(--green-soft);
+  color: var(--green);
+}
+
+:where(.bt) .btn.buy:hover:not(:disabled) {
+  border-color: var(--green);
+  background: var(--green-soft);
+}
+
+:where(.bt) .btn.sell {
+  border-color: transparent;
+  background: var(--red-soft);
+  color: var(--red);
+}
+
+:where(.bt) .btn.sell:hover:not(:disabled) {
+  border-color: var(--red);
+  background: var(--red-soft);
+}
+
+:where(.bt) .btn.danger:hover:not(:disabled) {
+  border-color: var(--red);
+  color: var(--red);
+}
+
+:where(.bt) .btn.sm {
+  height: 24px;
+  padding: 0 8px;
+  font-size: 12px;
+}
+
+:where(.bt) .btn.square {
+  width: var(--ctl);
+  padding: 0;
+}
+
+:where(.bt) .btn.wide {
+  width: 100%;
+}
+
+/* ---- inputs ---- */
+
+:where(.bt) .inp {
+  appearance: none;
+  display: block;
+  width: 100%;
+  height: var(--ctl);
+  padding: 0 9px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background-color: var(--surface-2);
+  background-image: none;
+  color: var(--text);
+  font-size: 13px;
+  line-height: 1.2;
+  box-shadow: none;
+  transition:
+    border-color 0.12s,
+    box-shadow 0.12s;
+}
+
+:where(.bt) .inp:hover {
+  border-color: var(--border-strong);
+}
+
+:where(.bt) .inp:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+:where(.bt) .inp::placeholder {
+  color: var(--text-3);
+}
+
+:where(.bt) select.inp {
+  padding-right: 26px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' fill='none' stroke='%238e8e8e' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M1 1l4 4 4-4'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 9px center;
+  background-size: 10px 6px;
+  cursor: pointer;
+}
+
+:where(.bt) textarea.inp {
+  height: auto;
+  min-height: 64px;
+  padding: 7px 9px;
+  line-height: 1.45;
+  resize: vertical;
+}
+
+:where(.bt) input.inp[type='number'] {
+  -moz-appearance: textfield;
+}
+
+:where(.bt) input.inp[type='number']::-webkit-inner-spin-button,
+:where(.bt) input.inp[type='number']::-webkit-outer-spin-button {
+  appearance: none;
+  margin: 0;
+}
+
+:where(.bt) input.inp[type='datetime-local']::-webkit-calendar-picker-indicator {
+  opacity: 0.55;
+  cursor: pointer;
+}
+
+/* ---- chips (multi-select) ---- */
+
+:where(.bt) .chip {
+  height: 24px;
+  padding: 0 9px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--text-2);
+  font-size: 12px;
+  white-space: nowrap;
+  transition:
+    background-color 0.12s,
+    border-color 0.12s,
+    color 0.12s;
+}
+
+:where(.bt) .chip:hover {
+  border-color: var(--border-strong);
+  color: var(--text);
+}
+
+:where(.bt) .chip.on {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent-hover);
+}
+
+/* ---- surfaces ---- */
+
+:where(.bt) .card {
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface-2);
+}
+
+/* Inline, non-blocking message. */
+:where(.bt) .note {
+  padding: 7px 9px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  color: var(--text-2);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+:where(.bt) .note.warn {
+  background: var(--amber-soft);
+  color: var(--amber);
+}
+
+:where(.bt) .note.err {
+  background: var(--amber-soft);
+  color: var(--amber);
+}
+
+:where(.bt) .note.bad {
+  background: var(--red-soft);
+  color: var(--red);
+}

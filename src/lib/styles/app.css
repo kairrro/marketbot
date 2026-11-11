@@ -1,0 +1,516 @@
+/*
+ * The look of the main app (sidebar, Discover, Watchlist, News): the same design
+ * tokens and base controls as the backtester (backtester.css), so moving between
+ * them feels like one product. Scoped to `.app`, and every base rule is wrapped in
+ * :where() so a component's own styles always win without specificity fights.
+ *
+ * The backtester's file is left alone on purpose. If a token changes there,
+ * change it here too.
+ */
+
+.app {
+  /* Surfaces: true neutral greys, near-black (never pure black, never tinted blue). */
+  --bg: #0d0d0d;
+  --surface: #131313;
+  --surface-2: #1a1a1a;
+  --surface-3: #222222;
+  --grid: #181818;
+  --border: #272727;
+  --border-strong: #383838;
+
+  --text: #e6e6e6;
+  --text-2: #8e8e8e;
+  --text-3: #606060;
+
+  /* One accent. */
+  --accent: #4c8dff;
+  --accent-hover: #6aa0ff;
+  --accent-soft: rgba(76, 141, 255, 0.14);
+  --accent-glow: rgba(76, 141, 255, 0.28);
+
+  /* Green and red are for P&L and price moves. Red also marks High impact on the News page. */
+  --green: #35b389;
+  --green-soft: rgba(53, 179, 137, 0.13);
+  --red: #e5565b;
+  --red-soft: rgba(229, 86, 91, 0.13);
+
+  /* Amber is for warnings and Medium impact. */
+  --amber: #d9a441;
+  --amber-soft: rgba(217, 164, 65, 0.11);
+
+  --radius: 8px;
+  --radius-sm: 6px;
+  --ctl: 30px;
+  --gap: 8px;
+  --ease: cubic-bezier(0.2, 0.7, 0.2, 1);
+
+  --font-ui: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', 'Cascadia Mono', Consolas, monospace;
+
+  position: fixed;
+  inset: 0;
+  display: flex;
+  background: var(--bg);
+  color: var(--text);
+  font: 400 13px/1.45 var(--font-ui);
+  font-feature-settings: 'cv11', 'ss01';
+  -webkit-font-smoothing: antialiased;
+  color-scheme: dark;
+  overflow: hidden;
+}
+
+:where(.app),
+:where(.app) *,
+:where(.app) *::before,
+:where(.app) *::after {
+  box-sizing: border-box;
+}
+
+:where(.app) :is(h1, h2, h3, h4, p, ul, ol, dl, dd, figure) {
+  margin: 0;
+  padding: 0;
+}
+
+:where(.app) :is(h1, h2, h3, h4) {
+  font-size: inherit;
+  font-weight: inherit;
+}
+
+:where(.app) :is(ul, ol) {
+  list-style: none;
+}
+
+:where(.app) table {
+  border-collapse: collapse;
+  border-spacing: 0;
+}
+
+:where(.app) svg {
+  display: block;
+  flex: none;
+}
+
+:where(.app) a {
+  color: inherit;
+  text-decoration: none;
+}
+
+:where(.app) :is(button, input, select, textarea) {
+  margin: 0;
+  font: inherit;
+  color: inherit;
+  letter-spacing: inherit;
+}
+
+:where(.app) button {
+  appearance: none;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  cursor: pointer;
+  text-align: inherit;
+}
+
+:where(.app) button:disabled {
+  cursor: default;
+}
+
+:where(.app) :focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+:where(.app) ::selection {
+  background: var(--accent-soft);
+}
+
+:where(.app) * {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-strong) transparent;
+}
+
+/* ---- text helpers ---- */
+
+:where(.app) .num {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: normal;
+  letter-spacing: -0.01em;
+}
+
+:where(.app) .pos {
+  color: var(--green);
+}
+
+:where(.app) .neg {
+  color: var(--red);
+}
+
+:where(.app) .amber {
+  color: var(--amber);
+}
+
+:where(.app) .dim {
+  color: var(--text-2);
+}
+
+:where(.app) .faint {
+  color: var(--text-3);
+}
+
+:where(.app) .cap {
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-3);
+}
+
+:where(.app) kbd {
+  display: inline-block;
+  min-width: 18px;
+  padding: 0 5px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--surface-2);
+  font: 500 10.5px/16px var(--font-mono);
+  color: var(--text-2);
+  text-align: center;
+}
+
+/* ---- buttons ---- */
+
+:where(.app) .btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: var(--ctl);
+  padding: 0 11px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  color: var(--text);
+  font-weight: 500;
+  white-space: nowrap;
+  transition:
+    background-color 0.14s,
+    border-color 0.14s,
+    color 0.14s,
+    transform 0.14s var(--ease),
+    box-shadow 0.14s;
+}
+
+:where(.app) .btn:hover:not(:disabled) {
+  border-color: var(--border-strong);
+  background: var(--surface-3);
+}
+
+:where(.app) .btn:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+:where(.app) .btn:disabled {
+  opacity: 0.45;
+}
+
+:where(.app) .btn.primary {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: #fff;
+}
+
+:where(.app) .btn.primary:hover:not(:disabled) {
+  border-color: var(--accent-hover);
+  background: var(--accent-hover);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+:where(.app) .btn.quiet {
+  border-color: transparent;
+  background: transparent;
+  color: var(--text-2);
+}
+
+:where(.app) .btn.quiet:hover:not(:disabled) {
+  border-color: transparent;
+  background: var(--surface-3);
+  color: var(--text);
+}
+
+:where(.app) .btn.on {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent-hover);
+}
+
+:where(.app) .btn.danger:hover:not(:disabled) {
+  border-color: var(--red);
+  color: var(--red);
+}
+
+:where(.app) .btn.sm {
+  height: 24px;
+  padding: 0 8px;
+  font-size: 12px;
+}
+
+:where(.app) .btn.square {
+  width: var(--ctl);
+  padding: 0;
+}
+
+/* ---- inputs ---- */
+
+:where(.app) .inp {
+  appearance: none;
+  display: block;
+  width: 100%;
+  height: var(--ctl);
+  padding: 0 9px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background-color: var(--surface-2);
+  background-image: none;
+  color: var(--text);
+  font-size: 13px;
+  line-height: 1.2;
+  box-shadow: none;
+  transition:
+    border-color 0.14s,
+    box-shadow 0.14s;
+}
+
+:where(.app) .inp:hover {
+  border-color: var(--border-strong);
+}
+
+:where(.app) .inp:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+:where(.app) .inp::placeholder {
+  color: var(--text-3);
+}
+
+:where(.app) select.inp {
+  padding-right: 26px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' fill='none' stroke='%238e8e8e' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M1 1l4 4 4-4'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 9px center;
+  background-size: 10px 6px;
+  cursor: pointer;
+}
+
+:where(.app) input.inp[type='number'] {
+  -moz-appearance: textfield;
+}
+
+:where(.app) input.inp[type='number']::-webkit-inner-spin-button,
+:where(.app) input.inp[type='number']::-webkit-outer-spin-button {
+  appearance: none;
+  margin: 0;
+}
+
+/* ---- chips ---- */
+
+:where(.app) .chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 24px;
+  padding: 0 9px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--text-2);
+  font-size: 12px;
+  white-space: nowrap;
+  transition:
+    background-color 0.14s,
+    border-color 0.14s,
+    color 0.14s;
+}
+
+:where(.app) button.chip:hover,
+:where(.app) a.chip:hover {
+  border-color: var(--border-strong);
+  color: var(--text);
+}
+
+:where(.app) .chip.on {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent-hover);
+}
+
+/* ---- surfaces ---- */
+
+:where(.app) .card {
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface-2);
+}
+
+:where(.app) .card.lift {
+  transition:
+    border-color 0.16s,
+    background-color 0.16s,
+    transform 0.16s var(--ease);
+}
+
+:where(.app) .card.lift:hover {
+  border-color: var(--border-strong);
+  background: var(--surface-3);
+  transform: translateY(-1px);
+}
+
+:where(.app) .note {
+  padding: 7px 9px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  color: var(--text-2);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+:where(.app) .note.warn {
+  background: var(--amber-soft);
+  color: var(--amber);
+}
+
+:where(.app) .note.bad {
+  background: var(--red-soft);
+  color: var(--red);
+}
+
+/* ---- page frame ---- */
+
+:where(.app) .page {
+  width: 100%;
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 30px 32px 60px;
+}
+
+:where(.app) .page-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 22px;
+}
+
+:where(.app) .page-title {
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--text);
+}
+
+:where(.app) .page-sub {
+  max-width: 720px;
+  margin-top: 5px;
+  color: var(--text-2);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+/* ---- tables ---- */
+
+:where(.app) .tbl {
+  width: 100%;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  overflow: hidden;
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+:where(.app) .tbl th {
+  padding: 9px 14px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text-3);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-align: left;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+:where(.app) .tbl td {
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border);
+  transition: background-color 0.12s;
+}
+
+:where(.app) .tbl tr:last-child td {
+  border-bottom: 0;
+}
+
+:where(.app) .tbl tbody tr:hover td {
+  background: var(--surface-2);
+}
+
+:where(.app) .tbl .r {
+  text-align: right;
+}
+
+/* ---- life: a gentle rise on load, always switched off for reduced motion ---- */
+
+@keyframes app-rise {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes app-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+:where(.app) .rise {
+  animation: app-rise 0.32s var(--ease) both;
+  animation-delay: calc(var(--i, 0) * 28ms);
+}
+
+:where(.app) .fade {
+  animation: app-fade 0.25s ease both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :where(.app) *,
+  :where(.app) *::before,
+  :where(.app) *::after {
+    animation-duration: 0.01ms !important;
+    animation-delay: 0ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+@media (max-width: 767px) {
+  :where(.app) .page {
+    padding: 20px 16px 48px;
+  }
+
+  :where(.app) .page-head {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}

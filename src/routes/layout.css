@@ -1,0 +1,12 @@
+@import 'tailwindcss';
+@plugin '@tailwindcss/forms';
+
+/* Dark mode as the default look, no toggle needed per requirements */
+html {
+  color-scheme: dark;
+}
+
+body {
+  @apply bg-zinc-900 text-gray-100;
+  font-family: 'Poppins', sans-serif;
+}

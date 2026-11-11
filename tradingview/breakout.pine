@@ -1,0 +1,30 @@
+//@version=5
+indicator("Breakout lines", overlay = true)
+
+// Two lines, the same ones you would draw by hand:
+//   Green line: the highest high of the 10 candles before the current one.
+//   Red line:   the lowest low of the 10 candles before the current one.
+// A candle that closes above the green line is a long. A candle that closes below the red line is a short.
+// The stop is not drawn: it is the lowest low (short: highest high) of the last 40 candles.
+// Alerts only fire if that stop is at least 0.5% of price away, like in the backtester. Set them to "Once Per Bar Close".
+
+entryLen   = input.int(10, "Candles for the lines", minval = 2)
+showStops  = input.bool(false, "Also show the 40-candle stop levels")
+upper = ta.highest(high, entryLen)[1]
+lower = ta.lowest(low, entryLen)[1]
+
+longBreak  = close > upper
+shortBreak = close < lower
+
+plot(upper, "High", color = color.green, linewidth = 2, style = plot.style_stepline)
+plot(lower, "Low", color = color.red, linewidth = 2, style = plot.style_stepline)
+
+stopLow  = ta.lowest(low, 40)
+stopHigh = ta.highest(high, 40)
+plot(showStops ? stopLow : na, "Long stop", color = color.new(color.gray, 50), style = plot.style_stepline)
+plot(showStops ? stopHigh : na, "Short stop", color = color.new(color.gray, 50), style = plot.style_stepline)
+
+longSignal  = longBreak and (close - stopLow) / close * 100 >= 0.5
+shortSignal = shortBreak and (stopHigh - close) / close * 100 >= 0.5
+alertcondition(longSignal, "Long breakout", "Closed above the high on {{ticker}}")
+alertcondition(shortSignal, "Short breakout", "Closed below the low on {{ticker}}")
