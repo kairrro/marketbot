@@ -62,6 +62,27 @@ export function monthly(trades: readonly Trade[], from: number, to: number): Mon
   return months;
 }
 
+export interface Day {
+  /** The UTC day, counted from 1970-01-01. */
+  day: number;
+  /** Total R of the trades that closed that UTC day, and those trades. */
+  r: number;
+  trades: Trade[];
+}
+
+/** The UTC days (the prop firms' day) on which trades closed, by day number. Days with no trade closing are not in it. */
+export function byDay(trades: readonly Trade[]): Map<number, Day> {
+  const days = new Map<number, Day>();
+  for (const trade of trades) {
+    const day = Math.floor(trade.exitTime / DAY_MS);
+    const entry = days.get(day) ?? { day, r: 0, trades: [] };
+    entry.r += trade.r;
+    entry.trades.push(trade);
+    days.set(day, entry);
+  }
+  return days;
+}
+
 /** Stats for `trades` (any order) tested over [from, to). */
 export function autoStats(trades: readonly Trade[], from: number, to: number): AutoStats {
   const closed = [...trades].sort((a, b) => a.exitTime - b.exitTime || a.entryTime - b.entryTime);
@@ -71,7 +92,6 @@ export function autoStats(trades: readonly Trade[], from: number, to: number): A
   let streak = 0;
   let losingStreak = 0;
   const exits: Record<ExitReason, number> = { stop: 0, trail: 0, end: 0 };
-  const days = new Map<number, number>();
   for (const trade of closed) {
     const total = equity[equity.length - 1] + trade.r;
     equity.push(total);
@@ -80,8 +100,6 @@ export function autoStats(trades: readonly Trade[], from: number, to: number): A
     streak = trade.r <= 0 ? streak + 1 : 0;
     losingStreak = Math.max(losingStreak, streak);
     exits[trade.exitReason] += 1;
-    const day = Math.floor(trade.exitTime / DAY_MS);
-    days.set(day, (days.get(day) ?? 0) + trade.r);
   }
   const wins = trades.filter((t) => t.r > 0).length;
   const sum = (list: readonly Trade[], pick: (t: Trade) => number) => list.reduce((total, t) => total + pick(t), 0);
@@ -100,7 +118,7 @@ export function autoStats(trades: readonly Trade[], from: number, to: number): A
     tradesPerMonth: to > from ? (trades.length / (to - from)) * MONTH_MS : 0,
     losingStreak,
     maxDrawdownR,
-    worstDayR: Math.min(0, ...days.values()),
+    worstDayR: Math.min(0, ...[...byDay(closed).values()].map((d) => d.r)),
     months: byMonth.length,
     monthsUp: byMonth.filter((m) => m.r > 0).length,
     worstMonthR: Math.min(0, ...byMonth.map((m) => m.r)),

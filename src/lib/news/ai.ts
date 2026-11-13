@@ -157,6 +157,106 @@ export async function rateHeadlines(
   return out;
 }
 
+export const FEED_SYSTEM = `${RULES}
+
+You get numbered news stories that were each followed by a real price move in something a trader follows. Write what happened in one plain sentence, 22 words at most, as the story reports it. Name the people and companies. Say what happened, never what the price did or will do, and do not say why the price moved.
+
+Mark relevant=false for anything that is not news, or that would not plausibly move the price of the stock or market it is about: analyst opinions, price targets, upgrades and downgrades, listicles, ads, recycled commentary, polls, rumours from suppliers or blogs, security patches and routine product or outage notes, and small side stories. Keep real company news (results, executives, lawsuits, regulators, big deals, scandals) and real macro news (central banks, inflation and jobs data, tariffs, war, oil supply).
+
+Answer with JSON only: {"items":[{"i":0,"relevant":true,"what":"..."}]}`;
+
+/**
+ * One plain sentence per story, checked like everything else the AI writes:
+ * direction words are sent back once, then replaced with a neutral line.
+ * Returns the stories the AI kept, by headline id.
+ */
+export async function describeHeadlines(ask: Ask, candidates: readonly Candidate[], now: number): Promise<Map<string, string>> {
+  const out = new Map<string, string>();
+  if (candidates.length === 0) return out;
+  const user = `Stories:\n${asList(candidates, now)}`;
+
+  type Reply = { items?: { i?: number; relevant?: boolean; what?: string }[] };
+  let reply = (await ask({ system: FEED_SYSTEM, user, maxTokens: 3000 })) as Reply;
+  const bad = bannedIn((reply.items ?? []).map((r) => String(r.what ?? '')));
+  if (bad.length > 0) {
+    reply = (await ask({
+      system: FEED_SYSTEM,
+      user: `${user}\n\nYour last answer used words that are not allowed: ${bad.join(', ')}. Write every "what" again with no direction words at all. Just say what happened.`,
+      maxTokens: 3000
+    })) as Reply;
+  }
+
+  for (const r of reply.items ?? []) {
+    const c = typeof r.i === 'number' ? candidates[r.i] : undefined;
+    if (!c || r.relevant === false) continue;
+    out.set(c.id, cleanText(words(String(r.what ?? ''), 28), neutral(c)));
+  }
+  return out;
+}
+
+export const SUMMARY_SYSTEM = `${RULES}
+
+You write the short version of the day for a trader who does not want to read news. All they care about is how big a swing to expect in what they trade, and when to stay out. You get the facts as JSON. Write:
+- "headline": one sentence, 22 words at most. Start with the day level (Quiet, Be careful or Big day). Name the main thing and its time.
+- "bullets": 3 to 5 short lines, 24 words at most each. Each is about one asset or one time. Say how big a swing to expect using only the swing numbers in the facts, and when to stay out. If a price already moved after a story, quote the measured move exactly as given (like "NVDA −4.3%") and say what the story was in a few words. Never use words like fell, rose, dropped or jumped.
+- Use only numbers and times that are in the facts. Never invent any.
+- Leave out anything that does not matter. On a quiet day, say so in one bullet.
+
+Answer with JSON only: {"headline":"...","bullets":["..."]}`;
+
+export interface PhrasedSummary {
+  headline: string;
+  bullets: string[];
+}
+
+/** Checks a model's lines for direction wording, asking once more before giving up. */
+async function cleanLines<T>(ask: Ask, system: string, user: string, read: (reply: T) => string[], maxTokens: number): Promise<T> {
+  let reply = (await ask({ system, user, maxTokens })) as T;
+  const bad = bannedIn(read(reply));
+  if (bad.length > 0) {
+    reply = (await ask({
+      system,
+      user: `${user}\n\nYour last answer used words that are not allowed: ${bad.join(', ')}. Write it again with no direction words at all.`,
+      maxTokens
+    })) as T;
+    if (bannedIn(read(reply)).length > 0) throw new Error('the wording kept using direction words');
+  }
+  return reply;
+}
+
+/** The headline and bullets for the day, phrased from the facts. Throws when the wording cannot be made clean. */
+export async function writeSummary(ask: Ask, facts: unknown): Promise<PhrasedSummary> {
+  type Reply = { headline?: string; bullets?: unknown };
+  const user = `Facts:\n${JSON.stringify(facts)}`;
+  const read = (r: Reply) => [String(r.headline ?? ''), ...(Array.isArray(r.bullets) ? (r.bullets as unknown[]).map(String) : [])];
+  const reply = await cleanLines<Reply>(ask, SUMMARY_SYSTEM, user, read, 2000);
+  const headline = words(String(reply.headline ?? ''), 30);
+  const bullets = (Array.isArray(reply.bullets) ? (reply.bullets as unknown[]) : []).map((b) => words(String(b), 32)).filter(Boolean).slice(0, 5);
+  if (!headline || bullets.length === 0) throw new Error('the model sent no summary');
+  return { headline, bullets };
+}
+
+export const STOCK_SYSTEM = `${RULES}
+
+You write three short bullets about one stock for a trader who does not want to read news. You get the facts as JSON: today's change, how far it normally moves in a day, the next earnings date, and recent stories with the price move that followed each.
+- Bullet 1: what has been going on, in plain words (the stories that mattered).
+- Bullet 2: what the price already did after those stories. Quote the measured moves exactly as given (like "−4.3%"). Never use words like fell, rose, dropped or jumped.
+- Bullet 3: what is next (an earnings date, if there is one) and how big a swing to expect, using only the numbers given.
+Each bullet is 28 words at most. Use only numbers and dates in the facts. If there is nothing to say, say that in one bullet.
+
+Answer with JSON only: {"bullets":["...","..."]}`;
+
+/** Three short bullets about one stock. Throws when the wording cannot be made clean. */
+export async function describeStock(ask: Ask, facts: unknown): Promise<string[]> {
+  type Reply = { bullets?: unknown };
+  const user = `Facts:\n${JSON.stringify(facts)}`;
+  const read = (r: Reply) => (Array.isArray(r.bullets) ? (r.bullets as unknown[]).map(String) : []);
+  const reply = await cleanLines<Reply>(ask, STOCK_SYSTEM, user, read, 1500);
+  const bullets = read(reply).map((b) => words(b, 34)).filter(Boolean).slice(0, 4);
+  if (bullets.length === 0) throw new Error('the model sent nothing');
+  return bullets;
+}
+
 /** What the mood is built from. Prices are the move since the last close, as context. */
 export interface MoodInput {
   events: readonly ScheduledItem[];

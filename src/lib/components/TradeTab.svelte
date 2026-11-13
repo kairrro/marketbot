@@ -10,6 +10,17 @@
   import TradeTicket from './TradeTicket.svelte';
 
   const notice = $derived(replay.notice);
+
+  // "5000 5m candles loaded…" is news for a few seconds, then it is just in the way.
+  // Warnings and errors stay until they are dismissed.
+  $effect(() => {
+    const current = replay.notice;
+    if (!current || current.kind !== 'info' || replay.loading) return;
+    const timer = setTimeout(() => {
+      if (replay.notice === current) replay.dismissNotice();
+    }, 7000);
+    return () => clearTimeout(timer);
+  });
 </script>
 
 <div class="stack">

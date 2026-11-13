@@ -166,12 +166,23 @@ class ReplayStore {
   // that listens here whenever its code changes, and the old copy must stop
   // reacting: two trade stores would both close an open trade and journal it twice.
   #guards = new Map<string, Guard>();
+  #holds = new Map<string, () => boolean>();
   #onCandle = new Map<string, (info: StepInfo) => void>();
   #onLoaded = new Map<string, (info: LoadedInfo) => void>();
 
   /** A guard can veto a load by returning a reason. */
   addGuard(name: string, guard: Guard): void {
     this.#guards.set(name, guard);
+  }
+
+  /**
+   * While any hold returns true, the trading-session filter does not skip: the
+   * candles after the session ends are stepped one by one like any others. The
+   * trade store holds while a trade is open, so it can finish before the replay
+   * jumps to the next day.
+   */
+  addHold(name: string, hold: () => boolean): void {
+    this.#holds.set(name, hold);
   }
 
   onCandle(name: string, fn: (info: StepInfo) => void): void {
@@ -512,6 +523,12 @@ class ReplayStore {
     return this.sessionOnly != null && this.tfMs <= SESSION_MAX_TF_MS;
   }
 
+  /** True while something (an open trade) needs the candles outside the session to be stepped through. */
+  #held(): boolean {
+    for (const hold of this.#holds.values()) if (hold()) return true;
+    return false;
+  }
+
   /**
    * Reveals the next candle. Returns false when there is nothing to reveal.
    *
@@ -519,11 +536,19 @@ class ReplayStore {
    * over first: they are revealed in one go, each still shown to the trade, so
    * a stop or target hit overnight is not missed, but nothing pauses on them.
    * The step then ends on the session's first candle.
+   *
+   * Not while a trade is open: it is stepped through candle by candle, past
+   * the end of the session, until it closes. The next step then skips ahead.
    */
   step(): boolean {
     if (this.sessionActive) {
       const halts = this.#halts;
-      while (this.info && this.candles[this.count] && this.#offSession(this.candles[this.count].t)) {
+      while (
+        this.info &&
+        this.candles[this.count] &&
+        !this.#held() &&
+        this.#offSession(this.candles[this.count].t)
+      ) {
         if (!this.#stepOne() || this.#halts !== halts) return false;
       }
     }

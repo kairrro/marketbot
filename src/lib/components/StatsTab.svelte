@@ -61,11 +61,6 @@
     </div>
   </dl>
 
-  <div class="balance">
-    <span class="dim">Current balance</span>
-    <span class="num">{fmtMoney(sessions.balance)}</span>
-  </div>
-
   <section>
     <p class="cap">Equity curve (R)</p>
     {#if stats.trades > 0}
@@ -113,18 +108,6 @@
     margin-top: 2px;
     font-size: 15px;
     font-weight: 500;
-  }
-
-  .balance {
-    display: flex;
-    align-items: baseline;
-    justify-content: space-between;
-    padding: 0 2px;
-  }
-
-  .balance .num {
-    font-size: 15px;
-    font-weight: 600;
   }
 
   .none {

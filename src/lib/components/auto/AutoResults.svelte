@@ -2,12 +2,14 @@
   // Results of an automatic run: the summary, a line per coin, the chart on
   // the picked trade with previous / next, why that trade was taken, and the trade list.
   import { autoCsv, challenge, funded, monthly } from '$lib/engine/auto/report';
+  import { utcDay, type CalendarEntry } from '$lib/engine/calendar';
   import { TIME_ZONE, type SkipReason } from '$lib/engine/auto/types';
   import { TF_MS } from '$lib/engine/types';
   import { fmtDate, fmtR, sign } from '$lib/format';
   import { auto } from '$lib/state/auto.svelte';
   import { download } from '$lib/state/files';
   import EquityCurve from '../EquityCurve.svelte';
+  import PnlCalendar from '../PnlCalendar.svelte';
   import Icon from '../ui/Icon.svelte';
   import AutoChart from './AutoChart.svelte';
   import AutoTrades from './AutoTrades.svelte';
@@ -45,6 +47,16 @@
       : []
   );
   const months = $derived(auto.result ? monthly(trades, auto.result.from, auto.result.to) : []);
+  /** The dollars and % are the R at the account's size and risk per trade. */
+  const calendar = $derived<CalendarEntry[]>(
+    trades.map((t) => ({
+      time: t.exitTime,
+      r: t.r,
+      usd: (t.r * risk * auto.settings.accountSize) / 100,
+      pct: t.r * risk,
+      label: `${t.coin} ${t.side}`
+    }))
+  );
   const odds = $derived(
     auto.result
       ? challenge(trades, auto.result.from, auto.result.to, {
@@ -140,6 +152,17 @@
     </div>
 
     <MonthlyGrid {months} />
+
+    <PnlCalendar
+      entries={calendar}
+      dayOf={utcDay}
+      tested={{ from: auto.result.from, to: auto.result.to }}
+      sub="what the trades that closed each UTC day made"
+      notes={{
+        usd: `Dollars at ${risk}% risk on every trade, on a ${money(auto.settings.accountSize)} account.`,
+        pct: `Percent of the account at ${risk}% risk on every trade.`
+      }}
+    />
 
     <section>
       <p class="cap">Prop challenge odds</p>

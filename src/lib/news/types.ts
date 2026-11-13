@@ -2,6 +2,7 @@
 // nothing predicts a direction. Impact is how BIG something is, volatility is how
 // jumpy the market is likely to be, the no-trade window is WHEN to stay out.
 
+import type { MoveAlertRecord } from './moves';
 import type { Swing } from './swing';
 
 export type Impact = 'low' | 'medium' | 'high';
@@ -155,6 +156,10 @@ export interface NewsSettings {
   discordBrief: boolean;
   discordAlerts: boolean;
   discordWeekly: boolean;
+  /** Ping Discord when a tracked stock or market has a big day and a story to go with it. */
+  moveAlerts: boolean;
+  /** How big, in normal days, a move has to be for that ping. */
+  moveAlertRatio: number;
   /** Show Low-impact scheduled events in the brief. */
   showLow: boolean;
 }
@@ -190,4 +195,6 @@ export interface NewsPayload {
   alerts: AlertRecord[];
   /** Latest price of each tracked market, to turn a % swing into points or dollars. */
   prices: Record<string, number>;
+  /** Big moves after a story, newest first. */
+  moveAlerts: MoveAlertRecord[];
 }

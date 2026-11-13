@@ -3,7 +3,9 @@
 
 import { env } from '$env/dynamic/private';
 import { CONFIG } from '$lib/config';
-import { alertText, briefText } from '$lib/news/format';
+import { alertText, briefText, moveAlertText } from '$lib/news/format';
+import type { MoveAlertRecord } from '$lib/news/moves';
+import type { Summary } from '$lib/news/summary';
 import type { Brief, HeadlineItem } from '$lib/news/types';
 
 const url = (): string => env.NEWS_DISCORD_WEBHOOK_URL || env.DISCORD_WEBHOOK_URL || CONFIG.discord.webhookUrl;
@@ -43,8 +45,8 @@ function chunks(text: string): string[] {
   return out;
 }
 
-export async function sendBrief(brief: Brief, showLow: boolean): Promise<void> {
-  const { title, body } = briefText(brief, showLow);
+export async function sendBrief(brief: Brief, showLow: boolean, summary?: Summary): Promise<void> {
+  const { title, body } = briefText(brief, showLow, summary);
   const parts = chunks(body);
   for (let i = 0; i < parts.length; i++) {
     await post({
@@ -64,6 +66,11 @@ export async function sendBrief(brief: Brief, showLow: boolean): Promise<void> {
 export async function sendAlert(alert: HeadlineItem, prices?: Record<string, number>): Promise<void> {
   const { title, body } = alertText(alert, prices);
   await post({ embeds: [{ title, description: body.slice(0, LIMIT), color: COLORS[alert.impact], timestamp: new Date().toISOString() }] });
+}
+
+export async function sendMoveAlert(alert: MoveAlertRecord, prices?: Record<string, number>): Promise<void> {
+  const { title, body } = moveAlertText(alert, prices);
+  await post({ embeds: [{ title, description: body.slice(0, LIMIT), color: 0xd9a441, timestamp: new Date().toISOString() }] });
 }
 
 export async function sendTest(): Promise<void> {

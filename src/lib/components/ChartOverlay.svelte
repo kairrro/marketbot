@@ -59,7 +59,7 @@
         <span class={sign(changePct)}>{fmtPct(changePct, 2, true)}</span>
       </span>
     {/if}
-    <span class="num dim">{fmtTime(replay.cursorTime)} <span class="faint">{display.offsetAt(replay.cursorTime)}</span></span>
+    <span class="num dim">{fmtTime(replay.cursorTime)}</span>
     {#if swings.mode}
       {@const mode = swings.mode}
       <span class="mode num" title="1h mode, from the last two 1h swing highs and swing lows">

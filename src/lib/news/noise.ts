@@ -140,7 +140,7 @@ const BIG: RegExp[] = [
   /\b(?:invasion|invades?|airstrike|air strike|missile|drone strike|attack(?:s|ed)?|bomb(?:s|ing)?|blockade|ceasefire|cease-fire|troops|war)\b/i,
   /\b(?:sanctions?|embargo|tariffs?|trade war|export (?:ban|controls?)|chip ban)\b/i,
   /\b(?:OPEC\+?|output cut|production cut|Hormuz|pipeline|refinery|oil (?:supply|inventories|stocks))\b/i,
-  /\b(?:resigns?|steps? down|fired|ousted|indicted?|arrested|subpoena|criminal|fraud|scandal|investigation|probe)\b/i,
+  /\b(?:resigns?|steps? down|fired|ousted|indicted?|arrested|subpoena|criminal|fraud|scandal|investigation|probe|affair|divorce|infidelity|cheat(?:ed|ing)|allegations?|accused|harassment|misconduct)\b/i,
   /\b(?:antitrust|lawsuit|sues?|sued|fine[sd]?|ban(?:s|ned)?|recall|breach|outage|shutdown|halts?)\b/i,
   /\b(?:acquires?|acquisition|merger|takeover|buyout|spin-?off|stake|billion deal|\$\d+(?:\.\d+)?\s*(?:billion|bn)\b)/i,
   /\b(?:earnings|guidance|revenue forecast|profit warning|warns?)\b/i,
@@ -178,7 +178,9 @@ export interface Candidate extends RawHeadline {
 export function pickCandidates(
   items: readonly RawHeadline[],
   assets: readonly TrackedAsset[],
-  limit = 6
+  limit = 6,
+  /** When false, a headline needs no big-news signal (looking up one stock, say). */
+  requireBig = true
 ): Candidate[] {
   const out: Candidate[] = [];
   for (const item of items) {
@@ -187,7 +189,7 @@ export function pickCandidates(
     const matched = matchAssets(headline, assets);
     if (matched.length === 0) continue;
     const hint = bigHint(headline);
-    if (hint === 0) continue;
+    if (requireBig && hint === 0) continue;
     const score = hint + sourceRank(source) + Math.min(1, matched.length - 1) * 0.5;
     out.push({ ...item, source, headline, matched, score });
   }

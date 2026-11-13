@@ -6,6 +6,7 @@ import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { yahooSymbol } from '$lib/data/stocks';
 import type { Candle } from '$lib/engine/types';
+import type { Bars } from '$lib/news/feed';
 import { getJson } from './http';
 
 const CACHE_DIR = join(dirname(process.env.DB_PATH ?? './data/market-bot.db'), 'databento');
@@ -61,5 +62,47 @@ export async function yahooFiveMinute(coin: string, now = Date.now()): Promise<C
     return out;
   } catch {
     return [];
+  }
+}
+
+const HOUR = 3_600_000;
+
+function parseYahoo(body: YahooChart): Candle[] {
+  const r = body.chart?.result?.[0];
+  const q = r?.indicators?.quote?.[0];
+  if (!r?.timestamp || !q) return [];
+  const out: Candle[] = [];
+  for (let i = 0; i < r.timestamp.length; i++) {
+    const [o, h, l, c] = [q.open?.[i], q.high?.[i], q.low?.[i], q.close?.[i]];
+    if (o == null || h == null || l == null || c == null) continue;
+    out.push({ t: r.timestamp[i] * 1000, o, h, l, c, v: q.volume?.[i] ?? 0 });
+  }
+  return out;
+}
+
+/**
+ * Two weeks of hourly prices and the usual daily move over about a month, from
+ * Yahoo (free), for the news feed. Null if Yahoo does not answer for this symbol.
+ */
+export async function yahooBars(coin: string, now = Date.now()): Promise<Bars | null> {
+  const symbol = encodeURIComponent(yahooSymbol(coin));
+  const base = `https://query1.finance.yahoo.com/v8/finance/chart/${symbol}`;
+  try {
+    const [hourly, daily] = await Promise.all([
+      getJson<YahooChart>(`${base}?interval=1h&range=14d&includePrePost=false`, { ttlMs: 10 * 60_000 }),
+      getJson<YahooChart>(`${base}?interval=1d&range=2mo&includePrePost=false`, { ttlMs: 60 * 60_000 })
+    ]);
+    const bars = parseYahoo(hourly).filter((c) => c.t + HOUR <= now);
+    // A day still being traded is not a finished day.
+    const closes = parseYahoo(daily)
+      .filter((c) => now - c.t > 20 * HOUR)
+      .map((c) => c.c)
+      .slice(-21);
+    const moves: number[] = [];
+    for (let i = 1; i < closes.length; i++) moves.push(Math.abs(closes[i] / closes[i - 1] - 1) * 100);
+    if (bars.length === 0 || moves.length < 5) return null;
+    return { symbol: coin, hourly: bars, typicalMove: moves.reduce((a, b) => a + b, 0) / moves.length };
+  } catch {
+    return null;
   }
 }

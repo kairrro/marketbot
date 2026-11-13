@@ -3,42 +3,61 @@
   // Followed rules, what the trades cut early would have done had they been
   // held, then every trade in a list to scan. Covers the chart area; Esc closes it.
   import { untrack } from 'svelte';
+  import type { CalendarEntry } from '$lib/engine/calendar';
   import { exitReasonOf, setupTypeLabel, type TradeRecord } from '$lib/engine/journal';
   import { computeStats } from '$lib/engine/stats';
   import { heldOutcome } from '$lib/engine/whatIf';
-  import { fmtR, fmtShortDateTime, sign } from '$lib/format';
+  import { fmtMoney, fmtR, fmtShortDateTime, sign } from '$lib/format';
   import { display } from '$lib/state/display.svelte';
   import { journalCandles } from '$lib/state/journalCandles';
   import { sessions } from '$lib/state/sessions.svelte';
   import { ui } from '$lib/state/ui.svelte';
+  import { zonedDay, zoneLabel } from '$lib/timezone';
+  import EvalOdds from './EvalOdds.svelte';
+  import PnlCalendar from './PnlCalendar.svelte';
   import Icon from './ui/Icon.svelte';
 
   const trades = $derived(sessions.trades);
   const total = $derived(computeStats(trades));
+
+  const calendar = $derived<CalendarEntry[]>(
+    trades.map((t) => ({
+      time: t.exitTime,
+      r: t.r,
+      usd: t.pnl,
+      pct: sessions.settings.startBalance > 0 ? (t.pnl / sessions.settings.startBalance) * 100 : 0,
+      label: `${t.coin} ${t.side}`
+    }))
+  );
 
   const dash = '–';
   const winRate = (value: number | null) => (value == null ? dash : `${value.toFixed(0)}%`);
   const r = (value: number | null) => (value == null ? dash : fmtR(value));
 
   // Trades tagged in the popup, or not at all. Older trades carry no tag.
-  const splits = $derived([
-    {
-      title: 'Setup',
-      groups: [
-        { label: 'Trend', trades: trades.filter((t) => t.setupType === 'trend') },
-        { label: 'Range', trades: trades.filter((t) => t.setupType === 'range') },
-        { label: 'Not tagged', trades: trades.filter((t) => !t.setupType) }
-      ]
-    },
-    {
-      title: 'Followed rules',
-      groups: [
-        { label: 'Yes', trades: trades.filter((t) => t.followedRules === true) },
-        { label: 'No', trades: trades.filter((t) => t.followedRules === false) },
-        { label: 'Not answered', trades: trades.filter((t) => t.followedRules == null) }
-      ]
-    }
-  ]);
+  const splits = $derived(
+    [
+      {
+        title: 'Setup',
+        groups: [
+          { label: 'Trend', tagged: true, trades: trades.filter((t) => t.setupType === 'trend') },
+          { label: 'Range', tagged: true, trades: trades.filter((t) => t.setupType === 'range') },
+          { label: 'Not tagged', tagged: false, trades: trades.filter((t) => !t.setupType) }
+        ]
+      },
+      {
+        title: 'Followed rules',
+        groups: [
+          { label: 'Yes', tagged: true, trades: trades.filter((t) => t.followedRules === true) },
+          { label: 'No', tagged: true, trades: trades.filter((t) => t.followedRules === false) },
+          { label: 'Not answered', tagged: false, trades: trades.filter((t) => t.followedRules == null) }
+        ]
+      }
+    ]
+      // A table appears once a trade has that tag; before, it would only repeat the totals. Rows with no trades are left out.
+      .filter((split) => split.groups.some((group) => group.tagged && group.trades.length > 0))
+      .map((split) => ({ ...split, groups: split.groups.filter((group) => group.trades.length > 0) }))
+  );
 
   // ---- cut early: would holding have reached the take profit? ----
 
@@ -96,48 +115,61 @@
           <div><dt>Total R</dt><dd class="num {sign(total.totalR)}">{fmtR(total.totalR)}</dd></div>
         </dl>
 
-        <div class="splits">
-          {#each splits as split (split.title)}
-            <div>
-              <p class="cap">By {split.title}</p>
-              <table>
-                <thead>
-                  <tr><th></th><th class="r">Trades</th><th class="r">Win rate</th><th class="r">Avg R</th><th class="r">Total R</th></tr>
-                </thead>
-                <tbody>
-                  {#each split.groups as group (group.label)}
-                    {@const s = computeStats(group.trades)}
-                    {#if group.trades.length > 0 || !group.label.startsWith('Not')}
-                      <tr class:faint={group.trades.length === 0}>
+        <PnlCalendar
+          entries={calendar}
+          dayOf={(ms) => zonedDay(ms, display.timeZone)}
+          sub="what the trades that closed each day made · {zoneLabel(display.timeZone)} time"
+          notes={{
+            usd: 'Dollars made by each trade, after fees.',
+            pct: `Percent of the ${fmtMoney(sessions.settings.startBalance)} starting balance.`
+          }}
+        />
+
+        {#if splits.length > 0}
+          <div class="splits">
+            {#each splits as split (split.title)}
+              <div>
+                <p class="cap">By {split.title}</p>
+                <table>
+                  <thead>
+                    <tr><th></th><th class="r">Trades</th><th class="r">Win rate</th><th class="r">Avg R</th><th class="r">Total R</th></tr>
+                  </thead>
+                  <tbody>
+                    {#each split.groups as group (group.label)}
+                      {@const s = computeStats(group.trades)}
+                      <tr>
                         <td>{group.label}</td>
                         <td class="r num">{s.trades}</td>
                         <td class="r num">{winRate(s.winRate)}</td>
                         <td class="r num {sign(s.avgR ?? 0)}">{r(s.avgR)}</td>
-                        <td class="r num {sign(s.totalR)}">{s.trades ? fmtR(s.totalR) : dash}</td>
+                        <td class="r num {sign(s.totalR)}">{fmtR(s.totalR)}</td>
                       </tr>
-                    {/if}
-                  {/each}
-                </tbody>
-              </table>
-            </div>
-          {/each}
-        </div>
+                    {/each}
+                  </tbody>
+                </table>
+              </div>
+            {/each}
+          </div>
+        {/if}
 
-        <div>
-          <p class="cap">Cut early</p>
-          {#if cutEarly.length === 0}
-            <p class="note">No trades were closed by hand before the target or the stop.</p>
-          {:else if held === null}
-            <p class="note">Checking the candles after your exits…</p>
-          {:else}
-            <p class="note cut">
-              <span class="num strong">{cutEarly.length}</span> cut early:
-              <span class="num strong pos">{held.target}</span> would have hit the take profit if held,
-              <span class="num strong neg">{held.stop}</span> would have hit the stop first{#if held.unknown > 0}, and
-                <span class="num strong">{held.unknown}</span> can't be told (not enough candles after the exit){/if}.
-            </p>
-          {/if}
-        </div>
+        <!-- Only when something was cut early: "none" is not worth a heading. -->
+        {#if cutEarly.length > 0}
+          <div>
+            <p class="cap">Cut early</p>
+            {#if held === null}
+              <p class="note">Checking the candles after your exits…</p>
+            {:else}
+              <p class="note cut">
+                <span class="num strong">{cutEarly.length}</span> cut early:
+                <span class="num strong pos">{held.target}</span> would have hit the take profit if held,
+                <span class="num strong neg">{held.stop}</span> would have hit the stop first{#if held.unknown > 0}, and
+                  <span class="num strong">{held.unknown}</span> can't be told (not enough candles after the exit){/if}.
+              </p>
+            {/if}
+          </div>
+        {/if}
+
+        <EvalOdds {trades} riskNow={sessions.riskUsd} />
 
         <div>
           <p class="cap">All trades</p>

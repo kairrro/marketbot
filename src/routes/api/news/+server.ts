@@ -1,5 +1,5 @@
 import { json } from '@sveltejs/kit';
-import { fetchQuotes, newsStatus } from '$lib/server/news/service';
+import { fetchQuotes, newsStatus, recentMoveAlerts } from '$lib/server/news/service';
 import { getBrief, getSettings, latestBrief, listAssets, listBriefDates, recentAlerts } from '$lib/server/news/store';
 
 // Everything the News page shows, in one request.
@@ -23,6 +23,7 @@ export async function GET({ url }) {
     weekly: weekly ? { ...weekly.brief, discordSentAt: weekly.discordSentAt } : null,
     morningDates: listBriefDates('morning'),
     weeklyDates: listBriefDates('weekly'),
-    alerts: recentAlerts(Date.now() - 3 * 86_400_000, 60)
+    alerts: recentAlerts(Date.now() - 3 * 86_400_000, 60),
+    moveAlerts: recentMoveAlerts()
   });
 }

@@ -1,6 +1,8 @@
 // Plain-text versions of the brief and alerts, for Discord. The page draws its own
 // cards from the same data; this is only the chat-message form.
 
+import type { MoveAlertRecord } from './moves';
+import { LEVEL_LABEL, type Summary } from './summary';
 import { fmtPct, fmtRatio, fmtSize, type Swing } from './swing';
 import { fmtDay, fmtRange, fmtTime, addDays, ctDateKey } from './time';
 import { IMPACT_RANK, type Brief, type HeadlineItem, type Impact, type ScheduledItem } from './types';
@@ -35,11 +37,17 @@ function headlineLine(h: HeadlineItem, prices?: Record<string, number>): string 
 }
 
 /** The brief as Discord markdown. Low-impact events are left out unless asked for. */
-export function briefText(brief: Brief, showLow = false): { title: string; body: string } {
+export function briefText(brief: Brief, showLow = false, summary?: Summary): { title: string; body: string } {
   const events = brief.events.filter((e) => showLow || IMPACT_RANK[e.impact] >= 1);
   const out: string[] = [];
 
   if (brief.kind === 'morning') {
+    // The short version first: most people stop reading after it.
+    if (summary) {
+      out.push(`**Short version: ${LEVEL_LABEL[summary.level]}**`, summary.headline);
+      for (const b of summary.bullets) out.push(`• ${b}`);
+      out.push('');
+    }
     if (brief.mood) {
       out.push(`**Mood:** ${cap(brief.mood.state)}`);
       out.push(...brief.mood.lines);
@@ -87,6 +95,26 @@ export function alertText(h: HeadlineItem, prices?: Record<string, number>): { t
     title: `${DOT[h.impact]} ${IMPACT_LABEL[h.impact]} impact: ${where}`,
     body: [h.what, '', swingText(h.swing, prices), `**Volatility:** ${cap(h.volatility)}`, `**Pause:** ${pause}`, source ? `**Source:** ${source}` : '', '', '_Info only. Swings are sizes, not a direction._']
       .filter((l, i, a) => l !== '' || a[i - 1] !== '')
+      .join('\n')
+  };
+}
+
+/** A big move after a story, for Discord: the story and the measured move. Not a forecast. */
+export function moveAlertText(a: MoveAlertRecord, prices: Record<string, number> = {}): { title: string; body: string } {
+  const sign = a.pct >= 0 ? '+' : '−';
+  const times = a.ratio < 1.25 ? 'a normal day' : `${a.ratio.toFixed(1)}× a normal day`;
+  const source = a.url ? `[${a.source || 'Source'}](${a.url})` : a.source;
+  const size = fmtSize(a.symbol, Math.abs(a.pct), prices[a.symbol] ?? a.price);
+  return {
+    title: `⚡ ${a.symbol} ${sign}${Math.abs(a.pct).toFixed(1)}% today (${times})`,
+    body: [
+      `**Story:** ${a.what}`,
+      source ? `**Source:** ${source} · ${fmtTime(a.publishedAt)} CT` : '',
+      size ? `**Move so far:** ${size}` : '',
+      '',
+      '_Measured from prices, not a prediction. Other news may have moved it too._'
+    ]
+      .filter((l, i, arr) => l !== '' || (i > 0 && arr[i - 1] !== ''))
       .join('\n')
   };
 }

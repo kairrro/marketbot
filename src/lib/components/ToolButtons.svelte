@@ -52,6 +52,7 @@
       <span class="text">{tool.label}</span>
     </button>
   {/each}
+  <span class="divider"></span>
   <button
     type="button"
     class="btn tool"
@@ -94,6 +95,13 @@
     display: flex;
     align-items: center;
     gap: 6px;
+  }
+
+  /* Drawing tools on the left, what the chart shows on the right. */
+  .divider {
+    width: 1px;
+    height: 16px;
+    background: var(--border);
   }
 
   /* On narrower screens the tools shrink to icons so the bar stays on one row. */

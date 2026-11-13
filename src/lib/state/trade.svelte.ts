@@ -160,6 +160,8 @@ class TradeStore {
       if (!next.keepCursor) return `${what} before reloading the chart.`;
       return null;
     });
+    // An open trade keeps the replay from skipping past the end of the session.
+    replay.addHold('trade', () => this.open != null);
     replay.onCandle('trade', (info) => this.#onCandle(info));
     // A reload changes the last close, so a draft's entry price is stale.
     replay.onLoaded('trade', () => {

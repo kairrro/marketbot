@@ -84,6 +84,11 @@ export function zonedTime(zone: TimeZone, year: number, month: number, day: numb
   return wall - offsetMinutes(guess, zone) * 60_000;
 }
 
+/** The calendar day the clock in `zone` is on at `ms`, counted from 1970-01-01 (1 Jan 1970 is day 0). */
+export function zonedDay(ms: number, zone: TimeZone): number {
+  return Math.floor((ms + offsetMinutes(ms, zone) * 60_000) / 86_400_000);
+}
+
 /** "UTC", "UTC+2", "UTC−4", "UTC+5:30". */
 export function offsetLabel(minutes: number): string {
   if (minutes === 0) return 'UTC';

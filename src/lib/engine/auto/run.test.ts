@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { TF_MS, type Candle } from '../types';
-import { autoCsv, autoStats, challenge, funded, monthly, type FundedRules, type PropRules } from './report';
+import { autoCsv, autoStats, byDay, challenge, funded, monthly, type FundedRules, type PropRules } from './report';
 import { runBreakout, type CoinCandles, type RunWindow } from './run';
 import { DEFAULTS, type BreakoutSettings, type Trade } from './types';
 
@@ -284,6 +284,27 @@ describe('fees', () => {
   it('cost a stop-out more than 1R', () => {
     const [t] = run([...START, [103, 104, 98.5, 100]], { feePct: 0.045 }).trades;
     expect(t.r).toBeLessThan(-1);
+  });
+});
+
+describe('daily P&L', () => {
+  const at = (day: number, hour: number, r: number) => ({ r, exitTime: Date.UTC(2026, 0, day, hour) }) as Trade;
+
+  it('adds up the trades that closed on each UTC day, and leaves the days with none out', () => {
+    const days = byDay([at(5, 1, 1.5), at(5, 23, -0.5), at(7, 12, -1)]);
+    expect([...days.values()].map((d) => [d.r, d.trades.length])).toEqual([[1, 2], [-1, 1]]);
+    expect(days.get(Date.UTC(2026, 0, 5) / 86_400_000)?.r).toBe(1);
+    expect(days.has(Date.UTC(2026, 0, 6) / 86_400_000)).toBe(false);
+  });
+
+  it('puts a trade on the day it closed, not the day it opened', () => {
+    const overnight = { r: 2, entryTime: Date.UTC(2026, 0, 5, 22), exitTime: Date.UTC(2026, 0, 6, 3) } as Trade;
+    expect([...byDay([overnight]).keys()]).toEqual([Date.UTC(2026, 0, 6) / 86_400_000]);
+  });
+
+  it('is what the worst day is read from', () => {
+    const trades = [at(5, 1, 1), at(5, 2, -2), at(6, 3, -1.5), at(6, 4, 3)];
+    expect(autoStats(trades, Date.UTC(2026, 0, 1), Date.UTC(2026, 1, 1)).worstDayR).toBe(-1);
   });
 });
 

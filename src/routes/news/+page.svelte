@@ -6,16 +6,24 @@
   import { page } from '$app/stores';
   import AlertsView from '$lib/components/news/AlertsView.svelte';
   import BriefView from '$lib/components/news/BriefView.svelte';
+  import FeedView from '$lib/components/news/FeedView.svelte';
+  import FindView from '$lib/components/news/FindView.svelte';
+  import SummaryView from '$lib/components/news/SummaryView.svelte';
   import SetupView from '$lib/components/news/SetupView.svelte';
   import TestView from '$lib/components/news/TestView.svelte';
   import WeekView from '$lib/components/news/WeekView.svelte';
   import Icon from '$lib/components/ui/Icon.svelte';
   import type { BacktestProgress, BacktestResult } from '$lib/news/backtestTypes';
+  import type { Feed } from '$lib/news/feed';
+  import type { Summary } from '$lib/news/summary';
   import { addDays, fmtDay, fmtTime, nextMonday } from '$lib/news/time';
   import type { NewsPayload } from '$lib/news/types';
 
-  type Tab = 'today' | 'alerts' | 'week' | 'test' | 'setup';
+  type Tab = 'summary' | 'find' | 'today' | 'feed' | 'alerts' | 'week' | 'test' | 'setup';
   const MAIN: { id: Tab; label: string }[] = [
+    { id: 'summary', label: 'Summary' },
+    { id: 'feed', label: 'Feed' },
+    { id: 'find', label: 'Find' },
     { id: 'today', label: 'Today' },
     { id: 'week', label: 'Week ahead' },
     { id: 'alerts', label: 'Alerts' }
@@ -27,7 +35,7 @@
   ];
   const TABS = [...MAIN, ...MORE];
 
-  const asTab = (v: string | null): Tab => (TABS.some((t) => t.id === v) ? (v as Tab) : 'today');
+  const asTab = (v: string | null): Tab => (TABS.some((t) => t.id === v) ? (v as Tab) : 'summary');
 
   let tab = $state<Tab>(asTab($page.url.searchParams.get('tab')));
   let data = $state<NewsPayload | null>(null);
@@ -39,6 +47,14 @@
   let now = $state(Date.now());
   let progress = $state<BacktestProgress>({ running: false, phase: '', done: 0, total: 0, startedAt: null, error: null });
   let result = $state<BacktestResult | null>(null);
+  let feed = $state<Feed | null>(null);
+  let feedRunning = $state(false);
+  let feedError = $state('');
+  let summary = $state<Summary | null>(null);
+  let summaryRunning = $state(false);
+  let summaryError = $state('');
+  /** The symbol to open in Find when it is reached from the Summary board. */
+  let findSymbol = $state('');
   let flashTimer: ReturnType<typeof setTimeout> | undefined;
 
   function say(message: string) {
@@ -74,6 +90,71 @@
     } catch {
       // The tab shows what it has.
     }
+  }
+
+  async function refreshSummary() {
+    summaryRunning = true;
+    summaryError = '';
+    try {
+      const res = await fetch('/api/news/summary', { method: 'POST' });
+      const body = (await res.json().catch(() => ({}))) as { summary?: Summary; message?: string };
+      if (res.ok && body.summary) summary = body.summary;
+      else summaryError = body.message ?? 'Could not build it.';
+    } catch (err) {
+      summaryError = err instanceof Error ? err.message : String(err);
+    } finally {
+      summaryRunning = false;
+    }
+  }
+
+  /** Shows the summary made last, and makes a new one when there is none or it is old. */
+  async function loadSummary() {
+    try {
+      const res = await fetch('/api/news/summary');
+      if (res.ok) {
+        const body = (await res.json()) as { summary: Summary | null; running: boolean };
+        summary = body.summary;
+        if (body.running) summaryRunning = true;
+      }
+    } catch {
+      // The tab shows what it has.
+    }
+    if (!summaryRunning && (!summary || Date.now() - summary.generatedAt > 45 * 60_000)) void refreshSummary();
+  }
+
+  function openFind(symbol: string) {
+    findSymbol = symbol;
+    choose('find');
+  }
+
+  async function refreshFeed() {
+    feedRunning = true;
+    feedError = '';
+    try {
+      const res = await fetch('/api/news/feed', { method: 'POST' });
+      const body = (await res.json().catch(() => ({}))) as { feed?: Feed; message?: string };
+      if (res.ok && body.feed) feed = body.feed;
+      else feedError = body.message ?? 'Could not build it.';
+    } catch (err) {
+      feedError = err instanceof Error ? err.message : String(err);
+    } finally {
+      feedRunning = false;
+    }
+  }
+
+  /** Shows the feed made last, and makes a new one when there is none or it is old. */
+  async function loadFeed() {
+    try {
+      const res = await fetch('/api/news/feed');
+      if (res.ok) {
+        const body = (await res.json()) as { feed: Feed | null; running: boolean };
+        feed = body.feed;
+        if (body.running) feedRunning = true;
+      }
+    } catch {
+      // The tab shows what it has.
+    }
+    if (!feedRunning && (!feed || Date.now() - feed.generatedAt > 90 * 60_000)) void refreshFeed();
   }
 
   async function post(kind: string, extra: Record<string, unknown> = {}): Promise<{ ok: boolean; body: Record<string, unknown> }> {
@@ -112,9 +193,13 @@
   async function checkAlerts() {
     busy = 'alerts';
     const { ok, body } = await post('alerts');
+    // Big days with a story to go with them are checked in the same go.
+    const moved = await post('moves');
     if (ok) {
       const run = body.run as { alerts: unknown[]; skipped?: string; failed: string[] };
-      say(run.skipped ? `Skipped: ${run.skipped}.` : run.alerts.length > 0 ? `${run.alerts.length} new alert${run.alerts.length === 1 ? '' : 's'}.` : 'Nothing big right now.');
+      const moves = moved.ok ? (moved.body.run as { found: unknown[] }).found.length : 0;
+      const total = (run.skipped ? 0 : run.alerts.length) + moves;
+      say(run.skipped && moves === 0 ? `Skipped: ${run.skipped}.` : total > 0 ? `${total} new alert${total === 1 ? '' : 's'}.` : 'Nothing big right now.');
       await load();
     } else say(String(body.message ?? 'Could not check.'));
     busy = null;
@@ -133,14 +218,20 @@
 
   function choose(next: Tab) {
     tab = next;
+    // A symbol sent over from the Summary board is for one visit to Find only.
+    if (next !== 'find') findSymbol = '';
     void goto(`?tab=${next}`, { replaceState: true, keepFocus: true, noScroll: true });
     if (next === 'test') void pollTest();
+    if (next === 'feed') void loadFeed();
+    if (next === 'summary') void loadSummary();
   }
 
   onMount(() => {
     void load();
     void loadTest();
     if (tab === 'test') void pollTest();
+    if (tab === 'feed') void loadFeed();
+    if (tab === 'summary') void loadSummary();
     const tick = setInterval(() => (now = Date.now()), 30_000);
     const refresh = setInterval(() => {
       if (document.visibilityState === 'visible') void load();
@@ -173,7 +264,7 @@
     <div>
       <h1 class="page-title">News</h1>
       <p class="page-sub">
-        When to stay out, and how big a swing to expect, for NQ, gold and crude. It shows size, never direction.
+        When to stay out, how big a swing to expect, and which stories moved prices lately. Forecasts show size, never direction.
       </p>
     </div>
   </header>
@@ -229,8 +320,16 @@
         <button class="btn primary" type="button" disabled={!!busy} onclick={() => write('morning')}>{busy === 'morning' ? 'Writing…' : 'Write the brief'}</button>
       </div>
     {/if}
+  {:else if tab === 'summary'}
+    <SummaryView {summary} running={summaryRunning} error={summaryError} onRefresh={refreshSummary} onFind={openFind} />
+  {:else if tab === 'find'}
+    {#key findSymbol}
+      <FindView assets={data.assets} initial={findSymbol} onChanged={load} />
+    {/key}
+  {:else if tab === 'feed'}
+    <FeedView {feed} running={feedRunning} error={feedError} today={data.status.today} onRefresh={refreshFeed} />
   {:else if tab === 'alerts'}
-    <AlertsView alerts={data.alerts} status={data.status} settings={data.settings} busy={busy === 'alerts'} prices={data.prices} onCheck={checkAlerts} />
+    <AlertsView alerts={data.alerts} moves={data.moveAlerts ?? []} status={data.status} settings={data.settings} busy={busy === 'alerts'} prices={data.prices} onCheck={checkAlerts} />
   {:else if tab === 'week'}
     <div class="bar">
       <div class="left">

@@ -93,3 +93,32 @@ export async function fetchRecentHeadlines(
   });
   return { items, failed };
 }
+
+/**
+ * Headlines of the past days, one search per tracked asset so a story about a
+ * single company is not drowned out by the others. Used by the news feed.
+ */
+export async function fetchFeedHeadlines(assets: readonly TrackedAsset[], sinceMs: number, ttlMs = 10 * 60_000): Promise<HeadlineFetch> {
+  const now = Date.now();
+  const when = whenFor(Math.max(0, now - sinceMs) + 2 * 3_600_000);
+  const failed: string[] = [];
+  const all: RawHeadline[] = [];
+  await Promise.all(
+    assets
+      .filter((a) => a.enabled)
+      .map((a) => {
+        const words = a.keywords.length ? a.keywords : [a.symbol];
+        const query = `(${words.map(quote).join(' OR ')})`;
+        return getText(googleUrl(query, { when }), { ttlMs })
+          .then((xml) => void all.push(...parseRss(xml)))
+          .catch((err) => void failed.push(`Google News (${a.symbol}): ${err instanceof Error ? err.message : err}`));
+      })
+  );
+  const seen = new Set<string>();
+  const items = all.filter((h) => {
+    if (h.publishedAt < sinceMs || h.publishedAt > now + 5 * 60_000 || seen.has(h.id)) return false;
+    seen.add(h.id);
+    return true;
+  });
+  return { items, failed };
+}

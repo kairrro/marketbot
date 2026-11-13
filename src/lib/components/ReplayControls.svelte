@@ -60,7 +60,7 @@
     aria-label="Trading session"
     title={replay.sessionOnly && !replay.sessionActive
       ? 'Sessions only apply on 1h and lower timeframes. Showing all hours.'
-      : 'Only replay one session: Next skips to the same session on the next day'}
+      : 'Only replay one session: Next skips to the same session on the next day (an open trade is played out first)'}
     value={replay.sessionOnly ?? ''}
     onchange={(event) => {
       const id = event.currentTarget.value;

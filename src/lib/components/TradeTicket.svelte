@@ -37,13 +37,9 @@
         Short
       </button>
     </div>
-    <p class="faint small">
-      {#if trade.future}
-        Starts with a {trade.stopPoints}-point stop. Pick a size, or drag the lines.
-      {:else}
-        Opens at the current close. Drag the stop and target, then confirm.
-      {/if}
-    </p>
+    {#if trade.future}
+      <p class="faint small">Starts with a {trade.stopPoints}-point stop. Pick a size, or drag the lines.</p>
+    {/if}
   {/if}
 
   <div class="exit">

@@ -2,7 +2,6 @@
   // Account settings for the active session, chart display, and session
   // housekeeping.
   import { fmtSessionTime, MARKET_SESSIONS } from '$lib/engine/marketSessions';
-  import { fmtMoney } from '$lib/format';
   import { display } from '$lib/state/display.svelte';
   import {
     deleteSession,
@@ -165,10 +164,6 @@
         </label>
       {/each}
     {/key}
-    <div class="field">
-      <span class="dim">Balance</span>
-      <span class="num strong">{fmtMoney(sessions.balance)}</span>
-    </div>
     {#if trade.open || trade.pending}
       <p class="note">Changes apply to the next trade. The open trade keeps the risk and fees it was placed with.</p>
     {/if}
@@ -321,10 +316,6 @@
     transform: translateY(-50%);
     font-size: 12px;
     pointer-events: none;
-  }
-
-  .strong {
-    font-weight: 600;
   }
 
   .sessions {

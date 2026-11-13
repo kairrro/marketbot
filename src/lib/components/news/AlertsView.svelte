@@ -3,10 +3,13 @@
   import { fmtDay, fmtTime, clockMinutes, ctDateKey } from '$lib/news/time';
   import type { AlertRecord, NewsSettings, NewsStatus } from '$lib/news/types';
   import Icon from '../ui/Icon.svelte';
+  import type { MoveAlertRecord } from '$lib/news/moves';
   import HeadlineCard from './HeadlineCard.svelte';
+  import MoveAlertCard from './MoveAlertCard.svelte';
 
   let {
     alerts,
+    moves = [],
     status,
     settings,
     busy,
@@ -14,6 +17,7 @@
     onCheck
   }: {
     alerts: AlertRecord[];
+    moves?: MoveAlertRecord[];
     status: NewsStatus;
     settings: NewsSettings;
     busy: boolean;
@@ -78,11 +82,23 @@
     </p>
   {/if}
 
-  {#if groups.length === 0}
+  {#if moves.length > 0}
+    <section>
+      <h2 class="h">Big moves after a story</h2>
+      <div class="list">
+        {#each moves as m, i (m.id)}
+          <MoveAlertCard alert={m} now={status.now} index={i} />
+        {/each}
+      </div>
+    </section>
+  {/if}
+
+  {#if groups.length === 0 && moves.length === 0}
     <div class="empty card rise" style="--i:1">
       <p class="big">No alerts</p>
       <p class="dim">
         Quiet is good. Only big, unscheduled headlines that touch your tracked assets get through, rated {settings.alertMinImpact === 'high' ? 'High' : 'Medium or High'}, at most {settings.maxAlertsPerHour} an hour.
+        {#if settings.moveAlerts}A tracked stock with a big day and a story to go with it gets a ping too.{/if}
       </p>
     </div>
   {:else}

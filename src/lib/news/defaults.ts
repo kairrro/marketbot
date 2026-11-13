@@ -99,5 +99,7 @@ export const DEFAULT_SETTINGS: NewsSettings = {
   discordBrief: true,
   discordAlerts: true,
   discordWeekly: true,
+  moveAlerts: true,
+  moveAlertRatio: 2,
   showLow: false
 };

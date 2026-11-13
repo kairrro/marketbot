@@ -201,6 +201,8 @@ export function sanitizeSettings(raw: Record<string, unknown>): NewsSettings {
     discordBrief: raw.discordBrief !== false,
     discordAlerts: raw.discordAlerts !== false,
     discordWeekly: raw.discordWeekly !== false,
+    moveAlerts: raw.moveAlerts !== false,
+    moveAlertRatio: Math.min(5, Math.max(1.5, Number(raw.moveAlertRatio) || d.moveAlertRatio)),
     showLow: raw.showLow === true
   };
 }

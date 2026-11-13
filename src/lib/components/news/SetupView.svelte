@@ -273,8 +273,18 @@
       <Toggle checked={settings.discordBrief} onchange={(v) => save({ discordBrief: v })}>Send the morning brief</Toggle>
       <Toggle checked={settings.discordAlerts} onchange={(v) => save({ discordAlerts: v })}>Send live alerts</Toggle>
       <Toggle checked={settings.discordWeekly} onchange={(v) => save({ discordWeekly: v })}>Send the weekly preview</Toggle>
+      <Toggle checked={settings.moveAlerts} onchange={(v) => save({ moveAlerts: v })}>Ping me when a tracked stock moves a lot after a story</Toggle>
       <Toggle checked={settings.showLow} onchange={(v) => save({ showLow: v })}>Include low-impact events in Discord</Toggle>
     </div>
+    {#if settings.moveAlerts}
+      <label class="ratio">
+        <span class="dim small">Ping when the move is at least</span>
+        <select class="inp" value={settings.moveAlertRatio} onchange={(e) => save({ moveAlertRatio: Number(e.currentTarget.value) })}>
+          {#each [1.5, 2, 3, 4] as r (r)}<option value={r}>{r}× a normal day</option>{/each}
+        </select>
+        <span class="faint small">One ping per stock per day, 8:30 AM to 3:15 PM Central.</span>
+      </label>
+    {/if}
     <div class="test">
       <button class="btn" type="button" disabled={!status.discordReady || testing} onclick={sendTest}>
         <Icon name="send" size={14} /> {testing ? 'Sending…' : 'Send a test message'}
@@ -505,6 +515,18 @@
     display: flex;
     align-items: center;
     gap: 12px;
+  }
+
+  .ratio {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 12px;
+    padding-left: 37px;
+  }
+
+  .ratio .inp {
+    width: 170px;
   }
 
   .foot {

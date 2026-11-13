@@ -185,6 +185,25 @@ describe('morning brief', () => {
     expect(findBanned(body.split('_Info only')[0])).toBeNull();
   });
 
+  it('starts the morning Discord message with the short version when there is one', async () => {
+    const brief = await buildMorningBrief('2025-03-12', NOW, deps({ headlines: async () => ({ items: [], failed: [] }) }));
+    const summary = {
+      generatedAt: NOW,
+      date: '2025-03-12',
+      level: 'big' as const,
+      headline: 'Big day: CPI at 7:30.',
+      bullets: ['NQ ~1.0% swing, stay out 7:25–8:15.'],
+      stayOut: [],
+      assets: [],
+      model: null,
+      notes: []
+    };
+    const withSummary = briefText(brief, false, summary).body;
+    expect(withSummary.startsWith('**Short version: Big day**\nBig day: CPI at 7:30.\n• NQ ~1.0% swing')).toBe(true);
+    // Without one the message is unchanged.
+    expect(briefText(brief, false).body).not.toContain('Short version');
+  });
+
   it('adds rated overnight news and a mood when the model is on', async () => {
     const { ask } = fakeModel([
       { items: [rating()] },
